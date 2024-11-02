@@ -1,0 +1,15 @@
+{
+  "name": "[/]Fuyumori_Notify",
+  "version": "1.0.0",
+  "description": "冬森鉄道専用通知Botです。バグなどを見つけた場合は、連絡いただけると幸いです。　This is a notification bot exclusively for Fuyumori Railway. If you find any bugs, please contact us.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "author": "Fuyumori Railway",
+  "license": "MIT",
+  "dependencies": {
+    "discord.js": "^14.16.3",
+    "express": "^4.21.1"
+  }
+}

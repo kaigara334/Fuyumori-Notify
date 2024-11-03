@@ -104,7 +104,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
     // 埋め込みメッセージを作成
     const embed = new EmbedBuilder()
-      .setColor(0x8ca5b5)
+      .setColor(0x0099ff)
       .setTitle("冬森鉄道運行情報｜Fuyumori Operation Information")
       .addFields(
         { name: "**日付｜Date**", value: `\`${date}\`` },
@@ -142,7 +142,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
     // 埋め込みメッセージを作成
     const embed = new EmbedBuilder()
-      .setColor(0x8ca5b5)
+      .setColor(0x0099ff)
       .setTitle("冬森鉄道運行情報｜Fuyumori Operation Information")
       .setDescription("運行を開始します")
       .addField("ホスト｜Host", `${interaction.user}`)

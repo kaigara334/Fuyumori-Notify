@@ -14,7 +14,7 @@ const port = process.env.PORT || 3000;
 // サーバーを起動してスリープを防ぐ
 app.get("/", (req, res) => res.send("Bot is running"));
 app.listen(port, () =>
-  console.log(`Server is running on http://localhost:${port}`),
+  console.log(`Server is running on http://localhost:${port}`)
 );
 
 // Botのセットアップ
@@ -31,37 +31,41 @@ client.once(Events.ClientReady, async () => {
   // コマンドの登録
   const commands = [
     new SlashCommandBuilder()
-      .setName("operationnotify_1")
+      .setName("notify_1")
       .setDescription("運行情報を通知します")
       .addStringOption((option) =>
         option
           .setName("date")
           .setDescription("日付を入力してください（例: 1/1）")
-          .setRequired(true),
+          .setRequired(true)
       )
       .addStringOption((option) =>
         option
           .setName("starttime")
           .setDescription("運行開始時間を入力してください（例: 0:00 JST）")
-          .setRequired(true),
+          .setRequired(true)
       )
       .addStringOption((option) =>
         option
           .setName("endtime")
           .setDescription("運行終了時間を入力してください（例: 0:00 JST）")
-          .setRequired(true),
+          .setRequired(true)
       )
       .addStringOption((option) =>
         option
           .setName("remarks")
           .setDescription("備考があれば入力してください（任意）")
-          .setRequired(false),
+          .setRequired(false)
       )
+      .toJSON(),
+    new SlashCommandBuilder()
+      .setName("notify_2")
+      .setDescription("運行開始のお知らせをします")
       .toJSON(),
   ];
 
   const rest = new REST({ version: "10" }).setToken(
-    process.env.DISCORD_BOT_TOKEN,
+    process.env.DISCORD_BOT_TOKEN
   );
   try {
     console.log("Started refreshing application (/) commands.");
@@ -78,17 +82,16 @@ client.once(Events.ClientReady, async () => {
 client.on(Events.InteractionCreate, async (interaction) => {
   if (!interaction.isChatInputCommand()) return;
 
-  if (interaction.commandName === "operationnotify_1") {
-    // 必要なロールがあるかを確認
-    const roleName = "🛤️ 運輸司令｜Transportation-Command";
-    const hasRole = interaction.member.roles.cache.some(
-      (role) => role.name === roleName,
-    );
+  const roleId = "1296042733991104573"; // 指定されたロールID
+  const hasRole = interaction.member.roles.cache.some(
+    (role) => role.id === roleId
+  );
 
+  if (interaction.commandName === "notify_1") {
     if (!hasRole) {
       // ロールがない場合エラーメッセージを表示
       return await interaction.reply({
-        content: `このコマンドを実行するには、\`${roleName}\` ロールが必要です。`,
+        content: `このコマンドを実行するには、指定されたロールが必要です。`,
         ephemeral: true,
       });
     }
@@ -101,25 +104,18 @@ client.on(Events.InteractionCreate, async (interaction) => {
 
     // 埋め込みメッセージを作成
     const embed = new EmbedBuilder()
-      .setColor(0x0099ff)
+      .setColor(0x8ca5b5)
       .setTitle("冬森鉄道運行情報｜Fuyumori Operation Information")
       .addFields(
         { name: "**日付｜Date**", value: `\`${date}\`` },
-        {
-          name: "**運行開始時間（JST）｜Time of starting (JST)**",
-          value: `\`${startTime}\``,
-        },
-        {
-          name: "**運行終了時間（JST）｜Time of ending (JST)**",
-          value: `\`${endTime}\``,
-        },
+        { name: "**運行開始時間（JST）｜Time of starting (JST)**", value: `\`${startTime}\`` },
+        { name: "**運行終了時間（JST）｜Time of ending (JST)**", value: `\`${endTime}\`` },
         { name: "**ホスト｜Host**", value: `${interaction.user}` },
         { name: "**備考｜Remarks**", value: `\`${remarks}\`` },
       )
       .addFields({
         name: "**注意点**",
-        value:
-          "```運行開始前もマップに入ることはできますが運行は開始されていませんのでご注意ください。\nグループに入っていないと運行には参加できませんのでご注意ください。\n尚、社員への暴言は忠告を三度まで行い、四回目以降は全て審議に掛けさせていただきます。```",
+        value: "```運行開始前もマップに入ることはできますが運行は開始されていませんのでご注意ください。\nグループに入っていないと運行には参加できませんのでご注意ください。\n尚、社員への暴言は忠告を三度まで行い、四回目以降は全て審議に掛けさせていただきます。```",
       });
 
     // メッセージを送信
@@ -134,8 +130,37 @@ client.on(Events.InteractionCreate, async (interaction) => {
       ephemeral: true,
     });
   }
+
+  if (interaction.commandName === "notify_2") {
+    if (!hasRole) {
+      // ロールがない場合エラーメッセージを表示
+      return await interaction.reply({
+        content: `このコマンドを実行するには、指定されたロールが必要です。`,
+        ephemeral: true,
+      });
+    }
+
+    // 埋め込みメッセージを作成
+    const embed = new EmbedBuilder()
+      .setColor(0x8ca5b5)
+      .setTitle("冬森鉄道運行情報｜Fuyumori Operation Information")
+      .setDescription("運行を開始します")
+      .addField("ホスト｜Host", `${interaction.user}`)
+      .setURL("https://www.roblox.com/games/18673496983/new-huyumori-map");
+
+    // メッセージを送信
+    await interaction.channel.send({
+      content: `<@&1296050288733585478>`, // ロールメンションを指定
+      embeds: [embed],
+    });
+
+    // コマンドを実行したユーザーに確認メッセージを返信
+    await interaction.reply({
+      content: "運行開始のお知らせが送信されました！",
+      ephemeral: true,
+    });
+  }
 });
 
 // Botトークンでログイン
-express();
 client.login(process.env.DISCORD_BOT_TOKEN);

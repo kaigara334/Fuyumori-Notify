@@ -103,7 +103,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     const remarks = interaction.options.getString("remarks") || "なし";
 
     // 埋め込みメッセージを作成
-    const embed = new EmbedBuilder()
+    const embed1 = new EmbedBuilder()
       .setColor(0x0099ff)
       .setTitle("冬森鉄道運行情報｜Fuyumori Operation Information")
       .addFields(
@@ -128,7 +128,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     // メッセージを送信
     await interaction.channel.send({
       content: `<@&1296050288733585478>`, // ロールメンションを指定
-      embeds: [embed],
+      embeds: [embed1],
     });
 
     // コマンドを実行したユーザーに確認メッセージを返信
@@ -149,7 +149,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     }
 
     // 埋め込みメッセージを作成
-    const embed = new EmbedBuilder()
+    const embed2 = new EmbedBuilder()
       .setColor(0x0099ff)
       .setTitle("冬森鉄道運行情報｜Fuyumori Operation Information")
       .setDescription("**運行を開始します**")
@@ -159,7 +159,7 @@ client.on(Events.InteractionCreate, async (interaction) => {
     // メッセージを送信
     await interaction.channel.send({
       content: `<@&1296050288733585478>`, // ロールメンションを指定
-      embeds: [embed],
+      embeds: [embed2],
     });
 
     // コマンドを実行したユーザーに確認メッセージを返信

@@ -1,174 +1,66 @@
-const {
-  Client,
-  GatewayIntentBits,
-  Events,
-  EmbedBuilder,
-  REST,
-  Routes,
-  SlashCommandBuilder,
-} = require("discord.js");
-const express = require("express");
-const app = express();
-const port = process.env.PORT || 3000;
+const { Client, Intents } = require('discord.js');
+const axios = require('axios');
+require('dotenv').config();  // .envファイルを読み込む
 
-// サーバーを起動してスリープを防ぐ
-app.get("/", (req, res) => res.send("Bot is running"));
-app.listen(port, () =>
-  console.log(`Server is running on http://localhost:${port}`),
-);
+const client = new Client({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MESSAGES] });
+const token = process.env.DISCORD_BOT_TOKEN;  // .envからBotトークンを取得
+const channelId = process.env.CHANNEL_ID;    // .envからチャンネルIDを取得
 
-// Botのセットアップ
-const client = new Client({
-  intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages],
-});
+// ntool APIのURL
+const trainInfoUrl = 'https://ntool.online/data/train_all.json';
 
-client.once(Events.ClientReady, async () => {
-  console.log(`Logged in as ${client.user.tag}`);
+// 運行情報を取得する関数
+async function fetchRailwayInfo() {
+    try {
+        // ntool APIにリクエストを送信
+        const response = await axios.get(trainInfoUrl);
 
-  // ステータスメッセージを「Fuyumori Railwayをプレイ中」に設定
-  client.user.setActivity("Fuyumori Railwayをプレイ中", { type: "PLAYING" });
+        const data = response.data.data;  // data配列を格納
 
-  // コマンドの登録
-  const commands = [
-    new SlashCommandBuilder()
-      .setName("notify_1") // コマンド名を変更
-      .setDescription("運行情報を通知します")
-      .addStringOption((option) =>
-        option
-          .setName("date")
-          .setDescription("日付を入力してください（例: 1/1）")
-          .setRequired(true),
-      )
-      .addStringOption((option) =>
-        option
-          .setName("starttime")
-          .setDescription("運行開始時間を入力してください（例: 0:00 JST）")
-          .setRequired(true),
-      )
-      .addStringOption((option) =>
-        option
-          .setName("endtime")
-          .setDescription("運行終了時間を入力してください（例: 0:00 JST）")
-          .setRequired(true),
-      )
-      .addStringOption((option) =>
-        option
-          .setName("remarks")
-          .setDescription("備考があれば入力してください（任意）")
-          .setRequired(false),
-      )
-      .toJSON(),
-    new SlashCommandBuilder()
-      .setName("notify_2")
-      .setDescription("運行開始の通知を送信します")
-      .toJSON(),
-  ];
+        // 鉄道運行情報がある場合
+        if (data && Array.isArray(data)) {
+            // 各路線の情報を取り出して送信
+            for (const line of data) {
+                const railName = line.railName || '不明';
+                const railCode = line.railCode || '不明';
+                const companyName = line.companyName || '不明';
+                const status = line.status || '不明';
+                const info = line.info || '詳細情報なし';
+                const lastUpdated = line.lastUpdated || '不明';
 
-  const rest = new REST({ version: "10" }).setToken(
-    process.env.DISCORD_BOT_TOKEN,
-  );
-  try {
-    console.log("Started refreshing application (/) commands.");
-    await rest.put(Routes.applicationCommands(client.user.id), {
-      body: commands,
-    });
-    console.log("Successfully reloaded application (/) commands.");
-  } catch (error) {
-    console.error(error);
-  }
-});
+                // Embedメッセージを作成
+                const embed = {
+                    color: 0x0099ff,
+                    title: '鉄道運行情報（自動更新）',
+                    fields: [
+                        { name: '路線名', value: railName, inline: true },
+                        { name: '路線コード', value: railCode, inline: true },
+                        { name: '運営会社', value: companyName, inline: true },
+                        { name: '運行状況', value: status, inline: true },
+                        { name: '運行情報', value: info, inline: false },
+                        { name: '最終更新', value: lastUpdated, inline: false },
+                    ],
+                    footer: { text: '提供元: ntool.online' },
+                };
 
-// コマンドの実装
-client.on(Events.InteractionCreate, async (interaction) => {
-  if (!interaction.isChatInputCommand()) return;
-
-  const requiredRoleId = "1296042733991104573"; // ここに実際のロールIDを入力
-
-  if (interaction.commandName === "notify_1") { // コマンド名を変更
-    // 必要なロールがあるかを確認
-    const hasRole = interaction.member.roles.cache.has(requiredRoleId);
-
-    if (!hasRole) {
-      // ロールがない場合エラーメッセージを表示
-      return await interaction.reply({
-        content: `このコマンドを実行するには、指定されたロールが必要です。`,
-        ephemeral: true,
-      });
+                // チャンネルに送信
+                const channel = await client.channels.fetch(channelId);
+                if (channel) await channel.send({ embeds: [embed] });
+            }
+        } else {
+            console.error('運行情報が見つかりませんでした');
+        }
+    } catch (error) {
+        console.error('運行情報取得エラー:', error);
     }
+}
 
-    // オプションからデータを取得
-    const date = interaction.options.getString("date");
-    const startTime = interaction.options.getString("starttime");
-    const endTime = interaction.options.getString("endtime");
-    const remarks = interaction.options.getString("remarks") || "なし";
+// Bot準備完了時
+client.once('ready', () => {
+    console.log('Bot is ready!');
 
-    // 埋め込みメッセージを作成
-    const embed1 = new EmbedBuilder()
-      .setColor(0x0099ff)
-      .setTitle("冬森鉄道運行情報｜Fuyumori Operation Information")
-      .addFields(
-        { name: "**日付｜Date**", value: `\`${date}\`` },
-        {
-          name: "**運行開始時間（JST）｜Time of starting (JST)**",
-          value: `\`${startTime}\``,
-        },
-        {
-          name: "**運行終了時間（JST）｜Time of ending (JST)**",
-          value: `\`${endTime}\``,
-        },
-        { name: "**ホスト｜Host**", value: `${interaction.user}` },
-        { name: "**備考｜Remarks**", value: `\`${remarks}\`` },
-      )
-      .addFields({
-        name: "**注意点**",
-        value:
-          "```運行開始前もマップに入ることはできますが運行は開始されていませんのでご注意ください。\nグループに入っていないと運行には参加できませんのでご注意ください。\n尚、社員への暴言は忠告を三度まで行い、四回目以降は全て審議に掛けさせていただきます。```",
-      });
-
-    // メッセージを送信
-    await interaction.channel.send({
-      content: `<@&1296050288733585478>`, // ロールメンションを指定
-      embeds: [embed1],
-    });
-
-    // コマンドを実行したユーザーに確認メッセージを返信
-    await interaction.reply({
-      content: "運行情報が送信されました！",
-      ephemeral: true,
-    });
-  } else if (interaction.commandName === "notify_2") {
-    // 必要なロールがあるかを確認
-    const hasRole = interaction.member.roles.cache.has(requiredRoleId);
-
-    if (!hasRole) {
-      // ロールがない場合エラーメッセージを表示
-      return await interaction.reply({
-        content: `このコマンドを実行するには、指定されたロールが必要です。`,
-        ephemeral: true,
-      });
-    }
-
-    // 埋め込みメッセージを作成
-    const embed2 = new EmbedBuilder()
-      .setColor(0x0099ff)
-      .setTitle("冬森鉄道運行情報｜Fuyumori Operation Information")
-      .setDescription("**運行を開始します**")
-      .addField("ホスト｜Host", `${interaction.user}`)
-      .addField("リンク", "https://www.roblox.com/games/18673496983/new-huyumori-map");
-
-    // メッセージを送信
-    await interaction.channel.send({
-      content: `<@&1296050288733585478>`, // ロールメンションを指定
-      embeds: [embed2],
-    });
-
-    // コマンドを実行したユーザーに確認メッセージを返信
-    await interaction.reply({
-      content: "運行開始通知が送信されました！",
-      ephemeral: true,
-    });
-  }
+    // 1分ごとに運行情報を取得
+    setInterval(fetchRailwayInfo, 60000);  // 60000ms = 1分
 });
 
-// Botトークンでログイン
-client.login(process.env.DISCORD_BOT_TOKEN);
+client.login(token);

@@ -1,66 +1,51 @@
-const { Client, Intents } = require('discord.js');
-const axios = require('axios');
-require('dotenv').config();  // .envファイルを読み込む
+const express = require("express");
+const { Client, GatewayIntentBits } = require("discord.js");
+const axios = require("axios");
 
-const client = new Client({ intents: [Intents.FLAGS.GUILDS, Intents.FLAGS.GUILD_MESSAGES] });
-const token = process.env.DISCORD_BOT_TOKEN;  // .envからBotトークンを取得
-const channelId = process.env.CHANNEL_ID;    // .envからチャンネルIDを取得
+const app = express();
+const port = 8080;
+const API_URL = "https://ntool.online/data/train_all.json";
 
-// ntool APIのURL
-const trainInfoUrl = 'https://ntool.online/data/train_all.json';
+// GitHub Actionsで設定した環境変数からボットトークンを取得
+const BOT_TOKEN = process.env.BOT_TOKEN;
 
-// 運行情報を取得する関数
-async function fetchRailwayInfo() {
-    try {
-        // ntool APIにリクエストを送信
-        const response = await axios.get(trainInfoUrl);
+// Discordクライアントのセットアップ
+const client = new Client({ intents: [GatewayIntentBits.Guilds] });
 
-        const data = response.data.data;  // data配列を格納
-
-        // 鉄道運行情報がある場合
-        if (data && Array.isArray(data)) {
-            // 各路線の情報を取り出して送信
-            for (const line of data) {
-                const railName = line.railName || '不明';
-                const railCode = line.railCode || '不明';
-                const companyName = line.companyName || '不明';
-                const status = line.status || '不明';
-                const info = line.info || '詳細情報なし';
-                const lastUpdated = line.lastUpdated || '不明';
-
-                // Embedメッセージを作成
-                const embed = {
-                    color: 0x0099ff,
-                    title: '鉄道運行情報（自動更新）',
-                    fields: [
-                        { name: '路線名', value: railName, inline: true },
-                        { name: '路線コード', value: railCode, inline: true },
-                        { name: '運営会社', value: companyName, inline: true },
-                        { name: '運行状況', value: status, inline: true },
-                        { name: '運行情報', value: info, inline: false },
-                        { name: '最終更新', value: lastUpdated, inline: false },
-                    ],
-                    footer: { text: '提供元: ntool.online' },
-                };
-
-                // チャンネルに送信
-                const channel = await client.channels.fetch(channelId);
-                if (channel) await channel.send({ embeds: [embed] });
-            }
-        } else {
-            console.error('運行情報が見つかりませんでした');
-        }
-    } catch (error) {
-        console.error('運行情報取得エラー:', error);
-    }
-}
-
-// Bot準備完了時
-client.once('ready', () => {
-    console.log('Bot is ready!');
-
-    // 1分ごとに運行情報を取得
-    setInterval(fetchRailwayInfo, 60000);  // 60000ms = 1分
+client.on("ready", () => {
+  console.log(`${client.user.tag} が起動しました！`);
 });
 
-client.login(token);
+// スラッシュコマンド処理
+client.on("interactionCreate", async (interaction) => {
+  if (!interaction.isCommand()) return;
+
+  if (interaction.commandName === "traininfo") {
+    try {
+      const response = await axios.get(API_URL);
+      const data = response.data.data;
+
+      let message = "🚆 **現在の列車運行情報**:\n";
+      data.forEach((train) => {
+        message += `**路線名**: ${train.railName}\n**状況**: ${train.status}\n**詳細**: ${train.info || "なし"}\n\n`;
+      });
+
+      await interaction.reply(message);
+    } catch (error) {
+      console.error(error);
+      await interaction.reply("⚠️ 運行情報の取得に失敗しました。");
+    }
+  }
+});
+
+// Expressでサーバーを起動
+app.get("/", (req, res) => {
+  res.send("列車運行情報 Discord Bot 稼働中");
+});
+
+app.listen(port, () => {
+  console.log(`サーバーがポート ${port} で稼働中`);
+});
+
+// Discord Botの起動
+client.login(BOT_TOKEN);
